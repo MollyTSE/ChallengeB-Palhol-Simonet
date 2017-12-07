@@ -1,0 +1,262 @@
+---
+title: "ChallengeB Final"
+author: "Simonet Molly and Palhol Sarah"
+date: "6/12/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Task 1  
+
+## Question 1 
+
+We choose the random forest machine learning technique. It is capable of doing regressions and classifications. It classifies explanatory variables depending on the explained variable, thus we can see the links between those 2 types of variables. It is composed of "a forest" of decision trees. Those trees have differents subsamples of the data. The subsamples are randomly drawn from the initial data. The more tree in the forest the more robust it is.To classifie a new object based on attributes, each tree gives a classifiction, and we say the tree votes for that class. The forest chooses the tree with the most votes of all the other trees in the forest. 
+
+## Question 2 
+
+First we clean the database by using the code of the challenge A 
+
+```{r clean data, results='hide', warning=FALSE, message=FALSE}
+set.seed(1)
+train <- read.csv("~/Documents/COURS/M1S7/Rprog/ProjetA/train.csv")
+test <- read.csv("~/Documents/COURS/M1S7/Rprog/ProjetA/test.csv")
+
+require("tidyr")
+require(randomForest)
+library(randomForest)
+library(dplyr)
+library(ggplot2)
+train$Id = NULL
+remove.vars <- train %>% summarise_all(.funs = funs(sum(is.na(.)))) %>% gather(key = "feature", value = "missing.observations") %>% filter(missing.observations > 100) %>% select(feature) %>% unlist
+
+train <- train %>% select(- one_of(remove.vars))
+
+train %>% summarise_all(.funs = funs(sum(is.na(.)))) %>% gather(key = "feature", value = "missing.observations") %>% filter(missing.observations > 0)
+
+train <- train %>% filter(is.na(GarageType) == FALSE, is.na(MasVnrType) == FALSE, is.na(BsmtFinType2) == FALSE, is.na(BsmtExposure) == FALSE, is.na(Electrical) == FALSE)
+
+
+# make sure it's all clean : Yes
+train %>% summarise_all(.funs = funs(sum(is.na(.)))) %>% gather(key = "feature", value = "missing.observations") %>% filter(missing.observations > 0)
+
+cat_var <- train %>% summarise_all(.funs = funs(is.character(.))) %>% gather(key = "feature", value = "is.chr") %>% filter(is.chr == TRUE) %>% select(feature) %>% unlist
+# cat_var is the vector of variable names that are stored as character
+
+train %>% mutate_at(.cols = cat_var, .funs = as.factor)
+
+cat_var <- test %>% summarise_all(.funs = funs(is.character(.))) %>% gather(key = "feature", value = "is.chr") %>% filter(is.chr == TRUE) %>% select(feature) %>% unlist
+# cat_var is the vector of variable names that are stored as character
+
+test %>% mutate_at(.cols = cat_var, .funs = as.factor)
+
+```
+
+```{r question 1.2, results='hide', warning=FALSE, message=FALSE}
+train.rf <- randomForest(SalePrice ~ MSZoning + LotArea + Neighborhood + YearBuilt + OverallQual, data=train, ntree=10, set.seed(1))
+summary(train.rf)
+
+```
+
+We use random forest to train the data on relevant variables. We set the seed at 1 and the number of trees at 10.
+
+## Question 3 
+
+```{r question 1.3, results='hide', warning=FALSE, message=FALSE}
+prediction <- predict(train.rf, test, norm.votes = TRUE)
+
+prediction <- predict(train.rf,test,norm.votes=TRUE)
+
+predictionframe <- data.frame(SalePrice_predict= prediction)
+
+summary(predictionframe)
+
+linearmodel <- lm(SalePrice ~ MSZoning + LotArea + Neighborhood + 
+                    YearBuilt + OverallQual, data=train)
+summary(linearmodel)
+```
+
+We predict the test data with the command "predict". We then predict a linear model using the same variables as with random forest.
+
+# Task 2 
+
+We create the data from the challenge A 
+
+```{r data, results='hide', warning=FALSE, message=FALSE}
+
+library(lattice)
+set.seed(1)
+library(tidyverse)
+library(np)
+library(caret)
+xd <- rnorm(n = 150)
+ed <- rnorm(n=150)
+yd <- xd^3 + ed
+draws <- data.frame(yd,xd)
+
+training.index <- createDataPartition(y = yd, times = 1, p = 0.8)
+draws <- draws %>% mutate(which.data = ifelse(1:n() %in% training.index$Resample1, "training", "test")) 
+
+training <- draws %>% filter(which.data == "training") 
+test <- draws %>% filter(which.data == "test")
+```
+
+## Question 1 
+
+```{r question 1, results='hide', warning=FALSE, message=FALSE}
+ll.fit.lowflex <- npreg(yd~xd^3 ,method="ll",bws =  0.5,data=training )
+summary(ll.fit.lowflex)
+```
+
+## Question 2 
+
+```{r question 2, results='hide', warning=FALSE, message=FALSE}
+ll.fit.highflex <- npreg(yd~xd^3 ,method="ll",bws =  0.01,data=training)
+```
+
+## Question 3 
+
+```{r question 3, results='hide', warning=FALSE, message=FALSE}
+training <- training %>% mutate(yd.ll.fit.lowflex = predict(object = ll.fit.lowflex))
+training <- training %>% mutate(yd.ll.fit.highflex = predict(object = ll.fit.highflex))
+
+ggplot(training) + geom_point(mapping = aes(x = xd, y = yd)) + 
+  geom_line(mapping = aes(x = xd, y = yd.ll.fit.lowflex), color = "red") + geom_line(mapping = aes(x = xd, y = yd.ll.fit.highflex), color = "blue")+  geom_line(mapping = aes(x = xd, y = xd^3))
+```
+
+We create a scatterplot with the command ggplot.
+
+## Question 4 
+
+When the bandwidth is higher the regression is more flexible and its shape is more similar to the function $x^3$.
+The predictions of the highflex model are more variable.
+The predictions of the highflex have the least bias.
+
+## Question 5 
+
+```{r question 5, results='hide', warning=FALSE, message=FALSE}
+ll.fit.lowflexT <- npreg(yd~xd^3 ,method = "ll",bws =  0.5,data=test)
+ll.fit.highflexT <- npreg(yd~xd^3 ,method = "ll",bws =  0.01,data=test)
+
+test<- test %>% mutate(yd.ll.fit.lowflexT = predict(object = ll.fit.lowflexT))
+test <- test %>% mutate(yd.ll.fit.highflexT = predict(object = ll.fit.highflexT))
+
+ggplot(test) + geom_point(mapping = aes(x = xd, y = yd)) + 
+  geom_line(mapping = aes(x = xd, y = yd.ll.fit.lowflexT), color = "red") + geom_line(mapping = aes(x = xd, y = yd.ll.fit.highflexT), color = "blue") + geom_line(mapping = aes(x = xd, y = xd^3))
+```
+
+The predictions of the highflex model are more variable.
+The predictions of the highflex have the least bias. But we can see that the bias is more important now.
+
+## Question 6 
+
+```{r question 6, results='hide', warning=FALSE, message=FALSE}
+
+bandwidth <- seq(0.01, 0.5, by = .001)
+```
+
+We create the vector with the command seq.
+
+## Question 7 
+
+```{r question 7, results='hide', warning=FALSE, message=FALSE}
+
+ll.fit.lowflexB <- lapply(X = bandwidth, FUN = function(bandwidth) {npreg(yd ~ xd^3, data = training, method = "ll", bws = bandwidth)})
+```
+
+We estimate the local linear model. We create a function which depends on the vector bandwidth.
+
+## Question 8
+
+```{r question 8, results='hide', warning=FALSE, message=FALSE}
+
+MSEtraining <- function(fit.model){
+  predictions <- predict(object = fit.model, newdata = training)
+  training %>% mutate(squared.error = (yd - predictions)^2) %>% summarize(mse = mean(squared.error))
+}
+MSEtraining.results <- unlist(lapply(X = ll.fit.lowflexB, FUN = MSEtraining))
+```
+
+We compute the MSE on the training data with the predict function.
+
+## Question 9 
+
+```{r question 9, results='hide', warning=FALSE, message=FALSE}
+MSEtest <- function(fit.model){
+  predictions <- predict(object = fit.model, newdata = test)
+  test %>% mutate(squared.error = (yd - predictions)^2) %>% summarize(mse = mean(squared.error))
+}
+MSEtest.results <- unlist(lapply(X = ll.fit.lowflexB, FUN = MSEtest))
+```
+
+We compute the MSE on the test data with the predict function.
+
+## Question 10 
+
+```{r question 10, results='hide', warning=FALSE, message=FALSE}
+
+MSE.table <- tbl_df(data.frame(bandwidth = bandwidth, MSE.train = MSEtraining.results, MSE.test = MSEtest.results))
+
+attach(MSE.table)
+ggplot(MSE.table) + geom_line(mapping=aes(x = bandwidth, y=MSE.test), color="orange") + geom_line(mapping=aes(x=bandwidth, y=MSE.train), color="blue")
+```
+
+A CONCLURE 
+
+# Task 3 
+
+## Question 1 
+
+In this question we use fred and read_excel to import the data because their size are important. 
+
+```{r question 3.1, results='hide', warning=FALSE, message=FALSE}
+library(ggplot2)
+library(readxl)
+library(readr)
+library(dplyr)
+library(ff)
+library(data.table)
+
+SIREN <- fread("~/Documents/COURS/M1S7/Rprog/Challenge B /sirc-17804_9075_14209_201710_L_M_20171101_030132835.csv")
+
+CIL<- read_excel("~/Documents/COURS/M1S7/Rprog/Challenge B /OpenCNIL_Organismes_avec_CIL_VD_20171204.xlsx")
+```
+
+## Question 2 
+
+We create a table with the number of organizations per departments with the following command : Trunc, n_distinct, group by and summarise.
+
+```{r question 3.2, results='hide', warning=FALSE, message=FALSE}
+CIL$Departement<-trunc(CIL$`Code Postal`/1000)
+NumberOfDep<-n_distinct(CIL$Departement)
+
+sum_up<-CIL %>%
+  group_by(Departement) %>%
+  summarise(dep_n = n())
+sum_up
+```
+
+## Question 3 
+
+We merge the 2 data with the command merge
+
+```{r question 3.3, results='hide', warning=FALSE, message=FALSE}
+
+Bigdata<-merge(CIL,SIREN, by.x = "SIREN", by.y = "SIREN", all.x = TRUE, all.y = FALSE)
+
+Bigdata$DATEMAJ
+```
+
+```{r time, results='hide', warning=FALSE, message=FALSE}
+system.time(SIREN <- fread("~/Documents/COURS/M1S7/Rprog/Challenge B /sirc-17804_9075_14209_201710_L_M_20171101_030132835.csv"))
+system.time(CIL<- read_excel("~/Documents/COURS/M1S7/Rprog/Challenge B /OpenCNIL_Organismes_avec_CIL_VD_20171204.xlsx"))
+system.time(CIL$Departement<-trunc(CIL$`Code Postal`/1000))
+system.time(NumberOfDep<-n_distinct(CIL$Departement))
+system.time(sum_up<-CIL %>%
+  group_by(Departement) %>%
+  summarise(dep_n = n()))
+system.time(Bigdata<-merge(CIL,SIREN, by.x = "SIREN", by.y = "SIREN", all.x = TRUE, all.y = FALSE))
+system.time(Bigdata$DATEMAJ)
+```

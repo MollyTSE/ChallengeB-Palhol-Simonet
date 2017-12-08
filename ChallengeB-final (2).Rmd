@@ -2,8 +2,13 @@
 title: "ChallengeB Final"
 author: "Simonet Molly and Palhol Sarah"
 date: "6/12/2017"
-output: pdf_document
+output:
+  word_document: default
+  html_document:
+    df_print: paged
 ---
+https://github.com/MollyTSE/ChallengeB-Palhol-Simonet
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -21,8 +26,8 @@ First we clean the database by using the code of the challenge A
 
 ```{r clean data, results='hide', warning=FALSE, message=FALSE}
 set.seed(1)
-train <- read.csv("~/Documents/COURS/M1S7/Rprog/ProjetA/train.csv")
-test <- read.csv("~/Documents/COURS/M1S7/Rprog/ProjetA/test.csv")
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
 
 require("tidyr")
 require(randomForest)
@@ -203,7 +208,7 @@ attach(MSE.table)
 ggplot(MSE.table) + geom_line(mapping=aes(x = bandwidth, y=MSE.test), color="orange") + geom_line(mapping=aes(x=bandwidth, y=MSE.train), color="blue")
 ```
 
-A CONCLURE 
+
 
 # Task 3 
 
@@ -260,3 +265,4 @@ system.time(sum_up<-CIL %>%
 system.time(Bigdata<-merge(CIL,SIREN, by.x = "SIREN", by.y = "SIREN", all.x = TRUE, all.y = FALSE))
 system.time(Bigdata$DATEMAJ)
 ```
+
